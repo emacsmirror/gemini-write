@@ -77,7 +77,8 @@ scheme."
   (local-set-key (kbd "C-c C-k") 'gemini-write-cancel))
 
 (defcustom elpher-gemini-tokens
-  '(("alexschroeder.ch" . "hello"))
+  '(("alexschroeder.ch" . "hello")
+    ("communitywiki.org" . "Elrond"))
   "An alist of hostnames and authorization tokens
 used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
