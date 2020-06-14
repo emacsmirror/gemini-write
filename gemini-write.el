@@ -1,4 +1,4 @@
-;;; gemini-write.el --- Elpher for Gemini+Write  -*- lexical-binding:t -*-
+;;; gemini-write.el --- Elpher for Titan  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2020 Alex Schroeder
 ;; Copyright (C) 2019 Tim Vaughan
@@ -31,10 +31,10 @@
 ;; - https://thelambdalab.xyz/elpher/
 ;; - https://git.carcosa.net/jmcbray/gemini.el
 
-;; Use 'e' to edit a Gemini page on a site that has Gemini+Write
-;; enabled. Use 'C-c C-c' to save, use 'C-c C-k' to cancel.
-;; Customize 'elpher-gemini-tokens' to set passwords, tokens, or
-;; whatever you need in order to edit sites.
+;; Use 'e' to edit a Gemini page on a site that has Titan enabled. Use
+;; 'C-c C-c' to save, use 'C-c C-k' to cancel. Customize
+;; 'elpher-gemini-tokens' to set passwords, tokens, or whatever you
+;; need in order to edit sites.
 
 ;;; Code:
 
@@ -51,7 +51,7 @@
   "Edit something, if possible.
 Editing can be attempted in two situations:
 1. via gopher, when looking at item type 'w'
-2. via gemini+write, when looking at a gemini URL"
+2. via titan, when looking at a gemini URL"
   (interactive)
   (let ((address (elpher-page-address elpher-current-page)))
     (cond ((equal (elpher-address-protocol address) "gemini")
@@ -61,12 +61,12 @@ Editing can be attempted in two situations:
 
 (defun elpher-edit-gemini (address)
   "Edit ADDRESS.
-This usually involves switching from gemini to the gemini+write
-URL scheme."
+This usually involves switching from gemini to the titan URL
+scheme."
   (read-only-mode 0)
   (gemini-mode)
-  (when (not (equal (elpher-address-protocol address) "gemini+write"))
-    (setf (url-type address) "gemini+write"))
+  (when (not (equal (elpher-address-protocol address) "titan"))
+    (setf (url-type address) "titan"))
   (message "Use C-c C-c to save, C-c C-k to cancel"))
 
 (add-to-list 'gemini-mode-hook 'gemini-write-init)
@@ -83,7 +83,7 @@ used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
   :group 'gemini-mode)
 
-(defun gemini-cancel ()
+(defun gemini-write-cancel ()
   "Reload current Gemini buffer."
   (interactive)
   (let ((address (elpher-page-address elpher-current-page)))
@@ -172,10 +172,11 @@ to ADDRESS."
                                         (let ((inhibit-eol-conversion t))
                                           (process-send-string
                                            proc
-                                           (concat (elpher-address-to-url address) "\r\n"
-						   token "\n"
-						   "text/plain" "\n"
-						   (number-to-string (length data)) "\n"
+                                           (concat (elpher-address-to-url address)
+						   ";mime=text/plain"
+						   ";size=" (number-to-string (length data))
+						   (if token (concat ";token=" token) "")
+						   "\n"
 						   data))))
 				       ((string-prefix-p "deleted" event)) ; do nothing
                                        ((and (not response-string-parts)
