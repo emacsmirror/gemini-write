@@ -78,7 +78,7 @@ scheme."
 
 (defcustom elpher-gemini-tokens
   '(("alexschroeder.ch" . "hello")
-    ("communitywiki.org" . "Elrond"))
+    ("communitywiki.org" . "hello"))
   "An alist of hostnames and authorization tokens
 used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
