@@ -26,7 +26,7 @@
 ;;; Commentary:
 
 ;; This uses Elpher to browse Gemini sites and Gemini Mode to edit
-;; them.
+;; them using the Titan protocol.
 
 ;; - https://thelambdalab.xyz/elpher/
 ;; - https://git.carcosa.net/jmcbray/gemini.el
