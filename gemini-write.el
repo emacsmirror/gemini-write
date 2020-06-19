@@ -104,97 +104,24 @@ This will be saved to `elpher-current-page'."
           (elpher-with-clean-buffer
            (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
 	  (setq elpher-gemini-redirect-chain nil)
-	  (gemini-write-response address 'elpher-render-gemini token data))
+	  (titan-write-response address 'elpher-render-gemini token data))
       (error
        (elpher-network-error address the-error)))))
 
-(defun gemini-write-response (address renderer token data &optional force-ipv4)
-  "Write DATA using TOKEN to gemini ADDRESS, then render using RENDERER.
-TOKEN is some kind of password or other string, see `elpher-gemini-tokens'.
-DATA must be raw bytes. Use (encode-coding-string (buffer-string) 'utf-8 t).
-If FORCE-IPV4 is non-nil, explicitly look up and use IPv4 address corresponding
-to ADDRESS."
-  (unless elpher-gemini-TLS-cert-checks
-    (setq-local network-security-level 'low))
-  (if (not (gnutls-available-p))
-      (error "Cannot establish gemini connection: GnuTLS not available")
-    (unless (< (elpher-address-port address) 65536)
-      (error "Cannot establish gemini connection: port number > 65536"))
-    (defvar gnutls-verify-error)
-    (condition-case nil
-        (let* ((kill-buffer-query-functions nil)
-               (gnutls-verify-error nil) ; We use the NSM for verification
-               (port (elpher-address-port address))
-               (host (elpher-address-host address))
-               (response-string-parts nil)
-               (bytes-received 0)
-               (hkbytes-received 0)
-               (proc (open-network-stream "elpher-process"
-                                          nil
-                                          (if (or elpher-ipv4-always force-ipv4)
-                                              (dns-query host)
-                                            host)
-                                          (if (> port 0) port 1965)
-                                          :type 'tls
-                                          :nowait t))
-               (timer (run-at-time elpher-connection-timeout nil
-                                   (lambda ()
-                                     (elpher-process-cleanup)
-                                     (unless (or elpher-ipv4-always force-ipv4)
-                                        ; Try again with IPv4
-                                       (message "Connection timed out.  Retrying with IPv4.")
-                                       (elpher-get-gemini-response address renderer t))))))
-          (setq elpher-network-timer timer)
-          (set-process-coding-system proc 'binary)
-          (set-process-filter proc
-                              (lambda (_proc string)
-                                (when timer
-                                  (cancel-timer timer)
-                                  (setq timer nil))
-                                (setq bytes-received (+ bytes-received (length string)))
-                                (let ((new-hkbytes-received (/ bytes-received 102400)))
-                                  (when (> new-hkbytes-received hkbytes-received)
-                                    (setq hkbytes-received new-hkbytes-received)
-                                    (with-current-buffer "*elpher*"
-                                      (let ((inhibit-read-only t))
-                                        (goto-char (point-min))
-                                        (beginning-of-line 2)
-                                        (delete-region (point) (point-max))
-                                        (insert "("
-                                                (number-to-string (/ hkbytes-received 10.0))
-                                                " MB read)")))))
-                                (setq response-string-parts
-                                      (cons string response-string-parts))))
-          (set-process-sentinel proc
-                                (lambda (proc event)
-                                  (condition-case the-error
-                                      (cond
-                                       ((string-prefix-p "open" event)    ; request URL
-                                        (let ((inhibit-eol-conversion t))
-                                          (process-send-string
-                                           proc
-                                           (concat (elpher-address-to-url address)
-						   ";mime=text/plain"
-						   ";size=" (number-to-string (length data))
-						   (if token (concat ";token=" token) "")
-						   "\n"
-						   data))))
-				       ((string-prefix-p "deleted" event)) ; do nothing
-                                       ((and (not response-string-parts)
-                                             (not (or elpher-ipv4-always force-ipv4)))
-                                        ; Try again with IPv4
-                                        (message "Connection failed. Retrying with IPv4.")
-                                        (cancel-timer timer)
-                                        (elpher-get-gemini-response address renderer t))
-                                       (t
-                                        (funcall #'elpher-process-gemini-response
-                                                 (apply #'concat (reverse response-string-parts))
-                                                 renderer)
-                                        (elpher-restore-pos)))
-                                    (error
-                                     (elpher-network-error address the-error))))))
-      (error
-       (error "Error initiating connection to server")))))
+(defun titan-write-response (address renderer token data)
+  "Write request to titan server at ADDRESS and render using RENDERER.
+The token, MIME type, and data size are added as parameters to
+the last address segment."
+  (elpher-get-host-response address 1965
+                            (concat (elpher-address-to-url address)
+				    ";mime=text/plain"
+				    ";size=" (number-to-string (length data))
+				    (if token (concat ";token=" token) "")
+				    "\r\n"
+				    data)
+                            (lambda (response-string)
+                              (elpher-process-gemini-response response-string renderer))
+                            'gemini))
 
 (provide 'gemini-write)
 
