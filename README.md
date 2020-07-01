@@ -17,6 +17,7 @@ The known sites that have Titan enabled:
 
 * [Alex Schroeder's Blog](gemini://alexschroeder.ch)
 * [Community Wiki](gemini://communitywiki.org:1966)
+* [Gemini Test Wiki](gemini://alexschroeder.ch:1968)
 
 If you're installing all three packages from source, here's an example
 of how to set it all up:
