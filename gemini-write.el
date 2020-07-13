@@ -92,6 +92,7 @@ scheme."
 (defcustom elpher-gemini-tokens
   '(("alexschroeder.ch" . "hello")
     ("communitywiki.org" . "hello")
+    ("127.0.0.1" . "hello")
     ("localhost" . "hello"))
   "An alist of hostnames and authorization tokens
 used when writing Gemini pages."
