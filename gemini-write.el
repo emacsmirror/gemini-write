@@ -59,12 +59,25 @@ Editing can be attempted in two situations:
 	  ;; FIXME: add support for gopher item 'w'
 	  (t (error "Elpher does not know how to edit this")))))
 
+(defmacro with-elpher-variables (&rest body)
+    "Run BODY and preserve some buffer-local variables.
+These are usually reset when installing a major mode.
+If you cannot avoid this, wrap the call in this macro."
+    `(let ((current-page elpher-current-page)
+	   (history elpher-history)
+	   (buffer-name elpher-buffer-name))
+       ,@body
+       (setq-local elpher-current-page current-page)
+       (setq-local elpher-history history)
+       (setq-local elpher-buffer-name buffer-name)))
+
 (defun elpher-edit-gemini (address)
   "Edit ADDRESS.
 This usually involves switching from gemini to the titan URL
 scheme."
   (read-only-mode 0)
-  (gemini-mode)
+  (with-elpher-variables
+   (gemini-mode))
   (when (not (equal (elpher-address-protocol address) "titan"))
     (setf (url-type address) "titan"))
   (message "Use C-c C-c to save, C-c C-k to cancel"))
@@ -91,7 +104,8 @@ used when writing Gemini pages."
   (let ((address (elpher-page-address elpher-current-page)))
     (when (not (equal (elpher-address-protocol address) "gemini"))
       (setf (url-type address) "gemini")))
-  (elpher-reload))
+  (with-elpher-variables
+   (elpher-reload)))
 
 (defun gemini-write ()
   "Save the current Gemini buffer.
@@ -102,12 +116,15 @@ This will be saved to `elpher-current-page'."
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
     (condition-case the-error
 	(progn
-          (elpher-with-clean-buffer
-           (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
+	  (with-elpher-variables
+           (elpher-with-clean-buffer
+            (insert "SAVING GEMINI... (use 'u' to cancel)\n")))
 	  (setq elpher-gemini-redirect-chain nil)
 	  (titan-write-response address 'elpher-render-gemini token data))
       (error
-       (elpher-network-error address the-error)))))
+       (elpher-network-error address the-error)))
+    (when (not (equal (elpher-address-protocol address) "gemini"))
+      (setf (url-type address) "gemini"))))
 
 (defun titan-write-response (address renderer token data)
   "Write request to titan server at ADDRESS and render using RENDERER.
