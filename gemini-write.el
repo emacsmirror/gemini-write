@@ -43,9 +43,7 @@
 
 ;;; gemini-write support
 
-(add-hook 'elpher-mode-hook
-	  (lambda ()
-	    (local-set-key (kbd "e") 'elpher-edit)))
+(define-key elpher-mode-map (kbd "e") 'elpher-edit)
 
 (defun elpher-edit ()
   "Edit something, if possible.
@@ -92,6 +90,7 @@ scheme."
 (defcustom elpher-gemini-tokens
   '(("alexschroeder.ch" . "hello")
     ("communitywiki.org" . "hello")
+    ("transjovian.org" . "hello")
     ("127.0.0.1" . "hello")
     ("localhost" . "hello"))
   "An alist of hostnames and authorization tokens
