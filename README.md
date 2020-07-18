@@ -9,15 +9,13 @@ Note: This needs *Elpher* 2.8. Maybe you need to get the latest
 version from the author's repository for it to work.
 
 Once you have all three packages installed, use `e` to edit a Gemini
-page on a site that has Titan enabled. Use `C-c C-c` to save, use `C-c
-C-k` to cancel. Customize `elpher-gemini-tokens` to set passwords,
-tokens, or whatever you need in order to edit sites.
+page on a site that has Titan enabled. Use `C-c C-c` to save.
+Customize `elpher-gemini-tokens` to set passwords, tokens, or whatever
+you need in order to edit sites.
 
 The known sites that have Titan enabled:
 
-* [Alex Schroeder's Blog](gemini://alexschroeder.ch)
-* [Community Wiki](gemini://communitywiki.org:1966)
-* [Gemini Test Wiki](gemini://alexschroeder.ch:1968)
+* [The Transjovian Council](gemini://transjovian.org)
 
 If you're installing all three packages from source, here's an example
 of how to set it all up:
@@ -30,7 +28,6 @@ of how to set it all up:
 (autoload 'gemini-mode "gemini-mode" "Gemini Mode" t)
 
 (add-to-list 'load-path "/home/alex/src/gemini-write")
-(autoload 'gemini-write-init "gemini-write" "Initialize Gemini Write Mode" t)
-
-(add-hook 'elpher-mode-hook 'gemini-write-init)
+(autoload 'elpher-edit "gemini-write" "Edit a Gemini page." t)
+(define-key elpher-mode-map (kbd "e") 'elpher-edit)
 ```

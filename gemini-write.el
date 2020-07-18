@@ -32,9 +32,8 @@
 ;; - https://git.carcosa.net/jmcbray/gemini.el
 
 ;; Use 'e' to edit a Gemini page on a site that has Titan enabled. Use
-;; 'C-c C-c' to save, use 'C-c C-k' to cancel. Customize
-;; 'elpher-gemini-tokens' to set passwords, tokens, or whatever you
-;; need in order to edit sites.
+;; 'C-c C-c' to save. Customize 'elpher-gemini-tokens' to set
+;; passwords, tokens, or whatever you need in order to edit sites.
 
 ;;; Code:
 
@@ -45,47 +44,55 @@
 
 (define-key elpher-mode-map (kbd "e") 'elpher-edit)
 
+(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)
+
+(defvar gemini-write-text-p nil
+  "A buffer local variable to store whether this is plain text.")
+
+(defun gemini-write-mime-type-text (&rest ignore)
+  "Remember that this buffer is plain/text."
+  (setq-local gemini-write-text-p t))
+
 (defun elpher-edit ()
-  "Edit something, if possible.
-Editing can be attempted in two situations:
-1. via gopher, when looking at item type 'w'
-2. via titan, when looking at a gemini URL"
+  "Edit a copy of the current Elpher buffer, if possible.
+Note that this only makes sense if you're looking at the raw
+gemtext. If you're looking at the rendered text, editing it
+will be a mess."
   (interactive)
   (let ((address (elpher-page-address elpher-current-page)))
-    (cond ((equal (elpher-address-protocol address) "gemini")
-           (elpher-edit-gemini address))
-	  ;; FIXME: add support for gopher item 'w'
-	  (t (error "Elpher does not know how to edit this")))))
+    (cond ((not (equal (elpher-address-protocol address) "gemini"))
+	   (error "Elpher does not know how to edit %s"
+		  (elpher-address-protocol address)))
+	  ((not gemini-write-text-p)
+	   (error "Elpher only knows how to edit text/plain"))
+	  (t (elpher-edit-buffer (buffer-string) elpher-current-page)))))
 
-(defmacro with-elpher-variables (&rest body)
-    "Run BODY and preserve some buffer-local variables.
-These are usually reset when installing a major mode.
-If you cannot avoid this, wrap the call in this macro."
-    `(let ((current-page elpher-current-page)
-	   (history elpher-history)
-	   (buffer-name elpher-buffer-name))
-       ,@body
-       (setq-local elpher-current-page current-page)
-       (setq-local elpher-history history)
-       (setq-local elpher-buffer-name buffer-name)))
+(defun elpher-edit-buffer (text page)
+  "Edit TEXT using Gemini mode for PAGE.
+PAGE is an Elpher page like `elpher-current-page'."
+  (switch-to-buffer
+   (get-buffer-create
+    (generate-new-buffer-name "*elpher edit*")))
+  (insert text)
+  (goto-char (point-min))
+  (elpher-edit-gemini page))
 
-(defun elpher-edit-gemini (address)
-  "Edit ADDRESS.
-This usually involves switching from gemini to the titan URL
-scheme."
-  (read-only-mode 0)
-  (with-elpher-variables
-   (gemini-mode))
-  (when (not (equal (elpher-address-protocol address) "titan"))
-    (setf (url-type address) "titan"))
+(defun elpher-edit-gemini (page)
+  "Edit the current buffer for PAGE."
+  (gemini-mode)
+  (setq-local elpher-current-page page)
+  (let ((address (elpher-page-address elpher-current-page)))
+    (when (not (equal (elpher-address-protocol address) "titan"))
+      (setf (url-type address) "titan"))
+    (when elpher-use-header
+      (setq header-line-format (elpher-address-to-url address))))
   (message "Use C-c C-c to save, C-c C-k to cancel"))
 
 (add-to-list 'gemini-mode-hook 'gemini-write-init)
 
 (defun gemini-write-init ()
   "Add editing commands to `gemini-mode'."
-  (local-set-key (kbd "C-c C-c") 'gemini-write)
-  (local-set-key (kbd "C-c C-k") 'gemini-write-cancel))
+  (local-set-key (kbd "C-c C-c") 'gemini-write))
 
 (defcustom elpher-gemini-tokens
   '(("alexschroeder.ch" . "hello")
@@ -98,33 +105,35 @@ used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
   :group 'gemini-mode)
 
-(defun gemini-write-cancel ()
-  "Reload current Gemini buffer."
-  (interactive)
-  (let ((address (elpher-page-address elpher-current-page)))
-    (when (not (equal (elpher-address-protocol address) "gemini"))
-      (setf (url-type address) "gemini")))
-  (with-elpher-variables
-   (elpher-reload)))
+(defun get-elpher-buffer-showing (page)
+  "Return the first Elpher buffer showing PAGE."
+  (catch 'buf
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+	(when (and (eq major-mode 'elpher-mode)
+		   (eq elpher-current-page page))
+	  (throw 'buf buf))))))
 
 (defun gemini-write ()
   "Save the current Gemini buffer.
-This will be saved to `elpher-current-page'."
+This will be saved to `elpher-current-page'. If there's an Elpher
+buffer that already shows this page, that's the buffer we're
+going to use. Otherwise, a new buffer is used."
   (interactive)
   (let* ((address (elpher-page-address elpher-current-page))
+	 (buf (or (get-elpher-buffer-showing elpher-current-page)
+		  (generate-new-buffer (default-value 'elpher-buffer-name))))
 	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
+    (switch-to-buffer buf)
     (condition-case the-error
 	(progn
-	  (with-elpher-variables
-           (elpher-with-clean-buffer
-            (insert "SAVING GEMINI... (use 'u' to cancel)\n")))
+	  (elpher-with-clean-buffer
+	   (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
 	  (setq elpher-gemini-redirect-chain nil)
 	  (titan-write-response address 'elpher-render-gemini token data))
       (error
-       (elpher-network-error address the-error)))
-    (when (not (equal (elpher-address-protocol address) "gemini"))
-      (setf (url-type address) "gemini"))))
+       (elpher-network-error address the-error)))))
 
 (defun titan-write-response (address renderer token data)
   "Write request to titan server at ADDRESS and render using RENDERER.
