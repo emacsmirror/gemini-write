@@ -82,11 +82,9 @@ PAGE is an Elpher page like `elpher-current-page'."
   (gemini-mode)
   (setq-local elpher-current-page page)
   (let ((address (elpher-page-address elpher-current-page)))
-    (when (not (equal (elpher-address-protocol address) "titan"))
-      (setf (url-type address) "titan"))
     (when elpher-use-header
       (setq header-line-format (elpher-address-to-url address))))
-  (message "Use C-c C-c to save, C-c C-k to cancel"))
+  (message "Use C-c C-c to save"))
 
 (add-to-list 'gemini-mode-hook 'gemini-write-init)
 
@@ -120,9 +118,14 @@ This will be saved to `elpher-current-page'. If there's an Elpher
 buffer that already shows this page, that's the buffer we're
 going to use. Otherwise, a new buffer is used."
   (interactive)
-  (let* ((address (elpher-page-address elpher-current-page))
-	 (buf (or (get-elpher-buffer-showing elpher-current-page)
-		  (generate-new-buffer (default-value 'elpher-buffer-name))))
+  (let* ((page elpher-current-page)
+	 (address (elpher-page-address page))
+	 (buf (or (get-elpher-buffer-showing page)
+		  (with-current-buffer
+		      (generate-new-buffer (default-value 'elpher-buffer-name))
+		    (elpher-mode)
+		    (setq-local elpher-current-page page)
+		    (current-buffer))))
 	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
     (switch-to-buffer buf)
@@ -139,16 +142,19 @@ going to use. Otherwise, a new buffer is used."
   "Write request to titan server at ADDRESS and render using RENDERER.
 The token, MIME type, and data size are added as parameters to
 the last address segment."
-  (elpher-get-host-response address 1965
-                            (concat (elpher-address-to-url address)
-				    ";mime=text/plain"
-				    ";size=" (number-to-string (length data))
-				    (if token (concat ";token=" token) "")
-				    "\r\n"
-				    data)
-                            (lambda (response-string)
-                              (elpher-process-gemini-response response-string renderer))
-                            'gemini))
+  (let ((titan-address (copy-sequence address)))
+    (setf (url-type titan-address) "titan")
+    (elpher-get-host-response
+     titan-address 1965
+     (concat (elpher-address-to-url titan-address)
+	     ";mime=text/plain"
+	     ";size=" (number-to-string (length data))
+	     (if token (concat ";token=" token) "")
+	     "\r\n"
+	     data)
+     (lambda (response-string)
+       (elpher-process-gemini-response response-string renderer))
+     'gemini)))
 
 (provide 'gemini-write)
 
