@@ -43,8 +43,10 @@
 ;;; gemini-write support
 
 (define-key elpher-mode-map (kbd "e") 'elpher-edit)
+(define-key elpher-mode-map (kbd "w") 'gemini-write-file)
 
-(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)
+(eval-after-load "elpher"
+  '(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text))
 
 (defvar gemini-write-text-p nil
   "A buffer local variable to store whether this is plain text.")
@@ -106,11 +108,13 @@ used when writing Gemini pages."
 (defun get-elpher-buffer-showing (page)
   "Return the first Elpher buffer showing PAGE."
   (catch 'buf
-    (dolist (buf (buffer-list))
-      (with-current-buffer buf
-	(when (and (eq major-mode 'elpher-mode)
-		   (eq elpher-current-page page))
-	  (throw 'buf buf))))))
+    (let ((address (elpher-page-address page)))
+      (dolist (buf (buffer-list))
+	(with-current-buffer buf
+	  (when (and (eq major-mode 'elpher-mode)
+		     (equal (elpher-page-address elpher-current-page)
+			    address))
+	    (throw 'buf buf)))))))
 
 (defun gemini-write ()
   "Save the current Gemini buffer.
@@ -118,17 +122,19 @@ This will be saved to `elpher-current-page'. If there's an Elpher
 buffer that already shows this page, that's the buffer we're
 going to use. Otherwise, a new buffer is used."
   (interactive)
-  (let* ((page elpher-current-page)
+  ;; using copy-sequence such that the redirect in the original buffer
+  ;; doesn't change our address, too
+  (let* ((page (copy-sequence elpher-current-page))
 	 (address (elpher-page-address page))
 	 (buf (or (get-elpher-buffer-showing page)
 		  (with-current-buffer
 		      (generate-new-buffer (default-value 'elpher-buffer-name))
 		    (elpher-mode)
-		    (setq-local elpher-current-page page)
 		    (current-buffer))))
 	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
     (switch-to-buffer buf)
+    (setq-local elpher-current-page page)
     (condition-case the-error
 	(progn
 	  (elpher-with-clean-buffer
@@ -138,16 +144,53 @@ going to use. Otherwise, a new buffer is used."
       (error
        (elpher-network-error address the-error)))))
 
-(defun titan-write-response (address renderer token data)
+(defun gemini-write-file (file url)
+  "Upload a file."
+  (interactive
+   (list (read-file-name "Upload file: " nil nil t nil 'file-regular-p)
+	 (read-string "URL: "
+		      (elpher-address-to-url
+		       (elpher-page-address elpher-current-page)))))
+  ;; using copy-sequence such that the redirect in the original buffer
+  ;; doesn't change our address, too
+  (let* ((buf (with-current-buffer
+		  (generate-new-buffer (default-value 'elpher-buffer-name))
+		(elpher-mode)
+		(current-buffer)))
+	 (address (elpher-address-from-url url))
+	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
+	 (mime-type (completing-read "MIME type: " (mailcap-mime-types) nil t
+				     (mailcap-extension-to-mime
+				      (file-name-extension file t))))
+	 (data (with-temp-buffer
+		 (insert-file-contents-literally file)
+		 (buffer-string))))
+    (switch-to-buffer buf)
+    (setq-local elpher-current-page
+		(elpher-make-page
+		 (format "*elpher upload of %s*" file)
+		 address))
+    (condition-case the-error
+	(progn
+	  (elpher-with-clean-buffer
+	   (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
+	  (setq elpher-gemini-redirect-chain nil)
+	  (titan-write-response address 'elpher-render-gemini token data mime-type))
+      (error
+       (elpher-network-error address the-error)))))
+
+(defun titan-write-response (address renderer token data &optional mime-type)
   "Write request to titan server at ADDRESS and render using RENDERER.
-The token, MIME type, and data size are added as parameters to
-the last address segment."
+The TOKEN, MIME-TYPE, and data size are added as parameters to
+the last address segment. The MIME type defaults to text/plain."
+  ;; using copy sequence so that the buffer's address doesn't change
+  ;; from gemini to titan
   (let ((titan-address (copy-sequence address)))
     (setf (url-type titan-address) "titan")
     (elpher-get-host-response
      titan-address 1965
      (concat (elpher-address-to-url titan-address)
-	     ";mime=text/plain"
+	     ";mime=" (or mime-type "text/plain")
 	     ";size=" (number-to-string (length data))
 	     (if token (concat ";token=" token) "")
 	     "\r\n"
