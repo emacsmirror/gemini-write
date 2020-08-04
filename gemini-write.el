@@ -85,7 +85,7 @@ PAGE is an Elpher page like `elpher-current-page'."
   (setq-local elpher-current-page page)
   (let ((address (elpher-page-address elpher-current-page)))
     (when elpher-use-header
-      (setq header-line-format (elpher-address-to-url address))))
+      (setq header-line-format (url-unhex-string (elpher-address-to-url address)))))
   (message "Use C-c C-c to save"))
 
 (add-to-list 'gemini-mode-hook 'gemini-write-init)
