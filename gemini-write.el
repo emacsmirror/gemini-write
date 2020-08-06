@@ -98,6 +98,7 @@ PAGE is an Elpher page like `elpher-current-page'."
   '(("alexschroeder.ch" . "hello")
     ("communitywiki.org" . "hello")
     ("transjovian.org" . "hello")
+    ("toki.transjovian.org" . "hello")
     ("next.oddmuse.org" . "hello")
     ("127.0.0.1" . "hello")
     ("localhost" . "hello"))
