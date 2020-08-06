@@ -15,7 +15,8 @@ you need in order to edit sites.
 
 The known sites that have Titan enabled:
 
-* [The Transjovian Council](gemini://transjovian.org)
+* [The Transjovian Council](gemini://transjovian.org) and all it's
+  wiki spaces
 
 If you're installing all three packages from source, here's an example
 of how to set it all up:
@@ -29,5 +30,6 @@ of how to set it all up:
 
 (add-to-list 'load-path "/home/alex/src/gemini-write")
 (autoload 'elpher-edit "gemini-write" "Edit a Gemini page." t)
-(define-key elpher-mode-map (kbd "e") 'elpher-edit)
+;; make sure "e" can be used to edit raw pages
+(eval-after-load "elpher" '(load-library "gemini-write"))
 ```
