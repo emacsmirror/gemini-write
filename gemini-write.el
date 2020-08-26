@@ -67,16 +67,17 @@ will be a mess."
 		  (elpher-address-protocol address)))
 	  ((not gemini-write-text-p)
 	   (error "Elpher only knows how to edit text/plain"))
-	  (t (elpher-edit-buffer (buffer-string) elpher-current-page)))))
+	  (t (elpher-edit-buffer (buffer-string)
+				 elpher-current-page (point))))))
 
-(defun elpher-edit-buffer (text page)
+(defun elpher-edit-buffer (text page point)
   "Edit TEXT using Gemini mode for PAGE.
 PAGE is an Elpher page like `elpher-current-page'."
   (switch-to-buffer
    (get-buffer-create
     (generate-new-buffer-name "*elpher edit*")))
   (insert text)
-  (goto-char (point-min))
+  (goto-char point)
   (elpher-edit-gemini page))
 
 (defun elpher-edit-gemini (page)
@@ -114,8 +115,10 @@ used when writing Gemini pages."
       (dolist (buf (buffer-list))
 	(with-current-buffer buf
 	  (when (and (eq major-mode 'elpher-mode)
-		     (equal (elpher-page-address elpher-current-page)
-			    address))
+		     (or (equal (elpher-page-address elpher-current-page)
+				address)
+			 (equal (elpher-page-address (car elpher-history))
+				address)))
 	    (throw 'buf buf)))))))
 
 (defun gemini-write ()
