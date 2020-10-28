@@ -101,6 +101,7 @@ PAGE is an Elpher page like `elpher-current-page'."
     ("transjovian.org" . "hello")
     ("toki.transjovian.org" . "hello")
     ("next.oddmuse.org" . "hello")
+    ("emacswiki.org" . "emacs")
     ("127.0.0.1" . "hello")
     ("localhost" . "hello"))
   "An alist of hostnames and authorization tokens
