@@ -132,18 +132,16 @@ used when writing Gemini pages."
   "Get a token from `elpher-gemini-tokens', or `auth-sources' if `gemini-write-use-auth-source' is enabled."
   (if-let (token (cdr (assoc host elpher-gemini-tokens)))
       token
-    (if gemini-write-use-auth-source
-	(let ((info (nth 0 (auth-source-search
-			    :host host
-			    :port (or port 1965)
-			    :require '(:secret)))))
-	  (if info
-	      (let ((secret (plist-get info :secret)))
-		(if (functionp secret)
-		    (funcall secret)
-		  secret))
-	    nil))
-      nil)))
+    (when gemini-write-use-auth-source
+      (let ((info (nth 0 (auth-source-search
+			  :host host
+			  :port (or port 1965)
+			  :require '(:secret)))))
+	(when info
+	  (let ((secret (plist-get info :secret)))
+	    (if (functionp secret)
+		(funcall secret)
+	      secret)))))))
 
 (defun gemini-write ()
   "Save the current Gemini buffer.
