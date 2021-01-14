@@ -39,6 +39,7 @@
 
 (require 'elpher)
 (require 'gemini-mode)
+(require 'auth-source)
 
 ;;; gemini-write support
 
@@ -109,6 +110,11 @@ used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
   :group 'gemini-mode)
 
+(defcustom gemini-write-use-auth-source t
+  "Enable password fetching from `auth-source', as well as from `elpher-gemini-tokens'."
+  :type 'boolean
+  :group 'gemini-mode)
+
 (defun get-elpher-buffer-showing (page)
   "Return the first Elpher buffer showing PAGE."
   (catch 'buf
@@ -121,6 +127,23 @@ used when writing Gemini pages."
 			 (equal (elpher-page-address (car elpher-history))
 				address)))
 	    (throw 'buf buf)))))))
+
+(defun gemini-write-get-token (host &optional port)
+  "Get a token from `elpher-gemini-tokens', or `auth-sources' if `gemini-write-use-auth-source' is enabled."
+  (if-let (token (cdr (assoc host elpher-gemini-tokens)))
+      token
+    (if gemini-write-use-auth-source
+	(let ((info (nth 0 (auth-source-search
+			    :host host
+			    :port (or port 1965)
+			    :require '(:secret)))))
+	  (if info
+	      (let ((secret (plist-get info :secret)))
+		(if (functionp secret)
+		    (funcall secret)
+		  secret))
+	    nil))
+      nil)))
 
 (defun gemini-write ()
   "Save the current Gemini buffer.
@@ -137,7 +160,7 @@ going to use. Otherwise, a new buffer is used."
 		      (generate-new-buffer (default-value 'elpher-buffer-name))
 		    (elpher-mode)
 		    (current-buffer))))
-	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
+	 (token (gemini-write-get-token (url-host address)))
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
     (switch-to-buffer buf)
     (setq-local elpher-current-page page)
@@ -164,7 +187,7 @@ going to use. Otherwise, a new buffer is used."
 		(elpher-mode)
 		(current-buffer)))
 	 (address (elpher-address-from-url url))
-	 (token (cdr (assoc (url-host address) elpher-gemini-tokens)))
+	 (token (gemini-write-get-token (url-host address)))
 	 (mime-type (completing-read "MIME type: " (mailcap-mime-types) nil t
 				     (mailcap-extension-to-mime
 				      (file-name-extension file t))))

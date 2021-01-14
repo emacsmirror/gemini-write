@@ -33,3 +33,11 @@ of how to set it all up:
 ;; make sure "e" can be used to edit raw pages
 (eval-after-load "elpher" '(load-library "gemini-write"))
 ```
+
+## Tokens
+
+`gemini-write` can pull tokens from the `elpher-gemini-tokens` alist, or from the `auth-source` library.  A gemini-write token entry in ~/.authsource should contain the host and the port, which by default is 1965, along with the token in the `password` field, like this:
+
+```
+machine example.com port 1965 password example-password
+```
