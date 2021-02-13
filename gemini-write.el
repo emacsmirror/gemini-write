@@ -90,7 +90,7 @@ PAGE is an Elpher page like `elpher-current-page'."
       (setq header-line-format (url-unhex-string (elpher-address-to-url address)))))
   (message "Use C-c C-c to save"))
 
-(add-to-list 'gemini-mode-hook 'gemini-write-init)
+(add-hook 'gemini-mode-hook #'gemini-write-init)
 
 (defun gemini-write-init ()
   "Add editing commands to `gemini-mode'."
