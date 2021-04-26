@@ -115,19 +115,6 @@ used when writing Gemini pages."
   :type 'boolean
   :group 'gemini-mode)
 
-(defun get-elpher-buffer-showing (page)
-  "Return the first Elpher buffer showing PAGE."
-  (catch 'buf
-    (let ((address (elpher-page-address page)))
-      (dolist (buf (buffer-list))
-	(with-current-buffer buf
-	  (when (and (eq major-mode 'elpher-mode)
-		     (or (equal (elpher-page-address elpher-current-page)
-				address)
-			 (equal (elpher-page-address (car elpher-history))
-				address)))
-	    (throw 'buf buf)))))))
-
 (defun gemini-write-get-token (host &optional port)
   "Get a token from `elpher-gemini-tokens', or `auth-sources' if `gemini-write-use-auth-source' is enabled."
   (if-let (token (cdr (assoc host elpher-gemini-tokens)))
@@ -153,11 +140,7 @@ going to use. Otherwise, a new buffer is used."
   ;; doesn't change our address, too
   (let* ((page (copy-sequence elpher-current-page))
 	 (address (elpher-page-address page))
-	 (buf (or (get-elpher-buffer-showing page)
-		  (with-current-buffer
-		      (generate-new-buffer (default-value 'elpher-buffer-name))
-		    (elpher-mode)
-		    (current-buffer))))
+	 (buf (get-buffer-create elpher-buffer-name))
 	 (token (gemini-write-get-token (url-host address)))
 	 (data (encode-coding-string (buffer-string) 'utf-8 t)))
     (switch-to-buffer buf)
