@@ -6,7 +6,7 @@
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Keywords: comm gemini
 ;; Homepage: https://alexschroeder.ch/cgit/gemini-write
-;; Package-Requires: ((emacs "26"))
+;; Package-Requires: ((emacs "26") (elpher "2.8.0") (gemini-mode "1.0.0"))
 
 ;; This file is not part of GNU Emacs.
 
