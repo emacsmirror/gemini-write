@@ -4,6 +4,7 @@
 ;; Copyright (C) 2019 Tim Vaughan
 
 ;; Author: Alex Schroeder <alex@gnu.org>
+;; Version: 1.0.0
 ;; Keywords: comm gemini
 ;; Homepage: https://alexschroeder.ch/cgit/gemini-write
 ;; Package-Requires: ((emacs "26") (elpher "2.8.0") (gemini-mode "1.0.0"))
@@ -32,7 +33,7 @@
 ;; - https://git.carcosa.net/jmcbray/gemini.el
 
 ;; Use 'e' to edit a Gemini page on a site that has Titan enabled. Use
-;; 'C-c C-c' to save. Customize 'elpher-gemini-tokens' to set
+;; 'C-c C-c' to save. Customize 'gemini-write-tokens' to set
 ;; passwords, tokens, or whatever you need in order to edit sites.
 
 ;;; Code:
@@ -41,26 +42,29 @@
 (require 'gemini-mode)
 (require 'auth-source)
 
-;;; gemini-write support
-
-(define-key elpher-mode-map (kbd "e") 'elpher-edit)
+;;; add gemini-write support to `elpher' and `gemini-mode'
+(define-key elpher-mode-map (kbd "e") 'gemini-write-text)
 (define-key elpher-mode-map (kbd "w") 'gemini-write-file)
+(define-key gemini-mode-map (kbd "C-c C-c") 'gemini-write)
 
-(eval-after-load "elpher"
-  '(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text))
+;; We need to know that this is one of the pages we can potentially write to.
+(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)
 
 (defvar gemini-write-text-p nil
-  "A buffer local variable to store whether this is plain text.")
+  "A buffer local variable to store whether this is plain text.
+Advice added to `elpher-render-gemini-plain-text' makes sure this is
+set correctly.")
 
-(defun gemini-write-mime-type-text (&rest ignore)
+(defun gemini-write-mime-type-text (&rest _ignore)
   "Remember that this buffer is plain/text."
   (setq-local gemini-write-text-p t))
 
-(defun elpher-edit ()
+(defun gemini-write-text ()
   "Edit a copy of the current Elpher buffer, if possible.
 Note that this only makes sense if you're looking at the raw
 gemtext. If you're looking at the rendered text, editing it
-will be a mess."
+will be a mess. In order to protect against this, the code
+checks `gemini-write-text-p'."
   (interactive)
   (let ((address (elpher-page-address elpher-current-page)))
     (cond ((not (equal (elpher-address-protocol address) "gemini"))
@@ -68,21 +72,18 @@ will be a mess."
 		  (elpher-address-protocol address)))
 	  ((not gemini-write-text-p)
 	   (error "Elpher only knows how to edit text/plain"))
-	  (t (elpher-edit-buffer (buffer-string)
-				 elpher-current-page (point))))))
+	  (t (gemini-write-buffer (buffer-string)
+				  elpher-current-page (point))))))
 
-(defun elpher-edit-buffer (text page point)
+(defun gemini-write-buffer (text page point)
   "Edit TEXT using Gemini mode for PAGE.
-PAGE is an Elpher page like `elpher-current-page'."
+PAGE is an Elpher page like `elpher-current-page'.
+POINT is an approximate position in that buffer."
   (switch-to-buffer
    (get-buffer-create
     (generate-new-buffer-name "*elpher edit*")))
   (insert text)
   (goto-char point)
-  (elpher-edit-gemini page))
-
-(defun elpher-edit-gemini (page)
-  "Edit the current buffer for PAGE."
   (gemini-mode)
   (setq-local elpher-current-page page)
   (let ((address (elpher-page-address elpher-current-page)))
@@ -90,13 +91,7 @@ PAGE is an Elpher page like `elpher-current-page'."
       (setq header-line-format (url-unhex-string (elpher-address-to-url address)))))
   (message "Use C-c C-c to save"))
 
-(add-hook 'gemini-mode-hook #'gemini-write-init)
-
-(defun gemini-write-init ()
-  "Add editing commands to `gemini-mode'."
-  (local-set-key (kbd "C-c C-c") 'gemini-write))
-
-(defcustom elpher-gemini-tokens
+(defcustom gemini-write-tokens
   '(("alexschroeder.ch" . "hello")
     ("communitywiki.org" . "hello")
     ("transjovian.org" . "hello")
@@ -105,19 +100,21 @@ PAGE is an Elpher page like `elpher-current-page'."
     ("emacswiki.org" . "emacs")
     ("127.0.0.1" . "hello")
     ("localhost" . "hello"))
-  "An alist of hostnames and authorization tokens
-used when writing Gemini pages."
+  "An alist of hostnames and authorization tokens.
+This is used when writing Gemini pages."
   :type '(alist :key-type (string :tag "Host") :value-type (string :tag "Token"))
   :group 'gemini-mode)
 
 (defcustom gemini-write-use-auth-source t
-  "Enable password fetching from `auth-source', as well as from `elpher-gemini-tokens'."
+  "Enable password fetching from `auth-source', as well as from `gemini-write-tokens'."
   :type 'boolean
   :group 'gemini-mode)
 
 (defun gemini-write-get-token (host &optional port)
-  "Get a token from `elpher-gemini-tokens', or `auth-sources' if `gemini-write-use-auth-source' is enabled."
-  (if-let (token (cdr (assoc host elpher-gemini-tokens)))
+  "Get a token for HOST and PORT.
+If `gemini-write-use-auth-source' is enabled, `auth-sources' is
+used to get the token; otherwise `gemini-write-tokens' is used."
+  (if-let (token (cdr (assoc host gemini-write-tokens)))
       token
     (when gemini-write-use-auth-source
       (let ((info (nth 0 (auth-source-search
@@ -130,15 +127,21 @@ used when writing Gemini pages."
 		(funcall secret)
 	      secret)))))))
 
+(defvar gemini-write-url-history nil
+  "A history of previously used Titan URLs.")
+
 (defun gemini-write ()
   "Save the current Gemini buffer.
-This will be saved to `elpher-current-page'. If there's an Elpher
-buffer that already shows this page, that's the buffer we're
-going to use. Otherwise, a new buffer is used."
+This will be saved to `elpher-current-page', if defined. Otherwise,
+ask for a Titan-enabled URL. Feel free to use the following testing
+URL: https://transjovian.org:1965/test/raw/gemini-write"
   (interactive)
   ;; using copy-sequence such that the redirect in the original buffer
   ;; doesn't change our address, too
-  (let* ((page (copy-sequence elpher-current-page))
+  (let* ((page (if elpher-current-page
+		   (copy-sequence elpher-current-page)
+		 (elpher-page-from-url
+		  (read-string "Titan URL: " nil 'gemini-write-url-history))))
 	 (address (elpher-page-address page))
 	 (buf (get-buffer-create elpher-buffer-name))
 	 (token (gemini-write-get-token (url-host address)))
@@ -150,12 +153,13 @@ going to use. Otherwise, a new buffer is used."
 	  (elpher-with-clean-buffer
 	   (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
 	  (setq elpher-gemini-redirect-chain nil)
-	  (titan-write-response address 'elpher-render-gemini token data))
+	  (gemini-write-response address 'elpher-render-gemini token data))
       (error
        (elpher-network-error address the-error)))))
 
 (defun gemini-write-file (file url)
-  "Upload a file."
+  "Upload FILE to URL.
+This does a file upload instead of a text edit."
   (interactive
    (list (read-file-name "Upload file: " nil nil t nil 'file-regular-p)
 	 (read-string "URL: "
@@ -185,13 +189,13 @@ going to use. Otherwise, a new buffer is used."
 	  (elpher-with-clean-buffer
 	   (insert "SAVING GEMINI... (use 'u' to cancel)\n"))
 	  (setq elpher-gemini-redirect-chain nil)
-	  (titan-write-response address 'elpher-render-gemini token data mime-type))
+	  (gemini-write-response address 'elpher-render-gemini token data mime-type))
       (error
        (elpher-network-error address the-error)))))
 
-(defun titan-write-response (address renderer token data &optional mime-type)
+(defun gemini-write-response (address renderer token data &optional mime-type)
   "Write request to titan server at ADDRESS and render using RENDERER.
-The TOKEN, MIME-TYPE, and data size are added as parameters to
+The TOKEN, MIME-TYPE, and DATA size are added as parameters to
 the last address segment. The MIME type defaults to text/plain."
   ;; using copy sequence so that the buffer's address doesn't change
   ;; from gemini to titan
