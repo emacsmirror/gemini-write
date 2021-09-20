@@ -41,6 +41,10 @@
 (require 'elpher)
 (require 'gemini-mode)
 (require 'auth-source)
+(require 'mailcap)
+
+;; compiles warnings
+(defvar elpher-gemini-redirect-chain)
 
 ;;; add gemini-write support to `elpher' and `gemini-mode'
 (define-key elpher-mode-map (kbd "e") 'gemini-write-text)
