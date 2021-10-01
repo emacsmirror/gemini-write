@@ -15,7 +15,7 @@ I would suggest the following:
 
 Add the following to your init file:
 
-```
+```elisp
 ;;; add gemini-write support to `elpher' and `gemini-mode'
 (define-key elpher-mode-map (kbd "e") 'gemini-write-text)
 (define-key elpher-mode-map (kbd "w") 'gemini-write-file)
@@ -42,7 +42,7 @@ If you're installing all three packages from source, here's an example
 of how to set it all up, given that I keep all my sources in
 “/home/alex/src”.
 
-```
+```elisp
 (add-to-list 'load-path "/home/alex/src/elpher")
 (autoload 'elpher "elpher" "Gopher and Gemini client" t)
 
@@ -63,6 +63,6 @@ or from the `auth-source` library. A gemini-write token entry in
 “~/.authsource” should contain the host and the port, which by default
 is 1965, along with the token in the `password` field, like this:
 
-```
+```netrc
 machine example.com port 1965 password example-password
 ```
