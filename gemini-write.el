@@ -32,6 +32,13 @@
 ;; - https://thelambdalab.xyz/elpher/
 ;; - https://git.carcosa.net/jmcbray/gemini.el
 
+;; Add gemini-write support to `elpher' and `gemini-mode' in your init
+;; file:
+
+;; (define-key elpher-mode-map (kbd "e") 'gemini-write-text)
+;; (define-key elpher-mode-map (kbd "w") 'gemini-write-file)
+;; (define-key gemini-mode-map (kbd "C-c C-c") 'gemini-write)
+
 ;; Use 'e' to edit a Gemini page on a site that has Titan enabled. Use
 ;; 'C-c C-c' to save. Customize 'gemini-write-tokens' to set
 ;; passwords, tokens, or whatever you need in order to edit sites.
@@ -45,11 +52,6 @@
 
 ;; compiles warnings
 (defvar elpher-gemini-redirect-chain)
-
-;;; add gemini-write support to `elpher' and `gemini-mode'
-(define-key elpher-mode-map (kbd "e") 'gemini-write-text)
-(define-key elpher-mode-map (kbd "w") 'gemini-write-file)
-(define-key gemini-mode-map (kbd "C-c C-c") 'gemini-write)
 
 ;; We need to know that this is one of the pages we can potentially write to.
 (advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)
