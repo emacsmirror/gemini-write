@@ -130,7 +130,7 @@ POINT is an approximate position in that buffer."
   (let ((address (elpher-page-address elpher-current-page)))
     (when elpher-use-header
       (setq header-line-format (url-unhex-string (elpher-address-to-url address)))))
-  (message "Use C-c C-c to save"))
+  (message (substitute-command-keys "Use `\\[gemini-write]' to save")))
 
 (defcustom gemini-write-tokens
   '(("alexschroeder.ch" . "hello")
