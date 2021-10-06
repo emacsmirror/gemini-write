@@ -1,6 +1,7 @@
 ;;; gemini-write.el --- Elpher for Titan  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2020 Alex Schroeder
+;; Copyright (C) 2020–2021 Alex Schroeder
+;; Copyright (C) 2021 Chris Rayner
 ;; Copyright (C) 2019 Tim Vaughan
 
 ;; Author: Alex Schroeder <alex@gnu.org>
@@ -33,11 +34,9 @@
 ;; - https://git.carcosa.net/jmcbray/gemini.el
 
 ;; Add gemini-write support to `elpher' and `gemini-mode' in your init
-;; file:
+;; file by enabling the minor mode:
 
-;; (define-key elpher-mode-map (kbd "e") 'gemini-write-text)
-;; (define-key elpher-mode-map (kbd "w") 'gemini-write-file)
-;; (define-key gemini-mode-map (kbd "C-c C-c") 'gemini-write)
+;; (gemini-write-mode 1)
 
 ;; Use 'e' to edit a Gemini page on a site that has Titan enabled. Use
 ;; 'C-c C-c' to save. Customize 'gemini-write-tokens' to set
@@ -52,6 +51,44 @@
 
 ;; compiles warnings
 (defvar elpher-gemini-redirect-chain)
+
+;;;###autoload
+(define-minor-mode gemini-write-mode
+  "Togglable global minor mode for gemini-write."
+  :global t
+  (cond
+   (gemini-write-mode
+    (advice-add #'elpher-render-gemini-plain-text :after #'gemini-write-mime-type-text)
+    (add-hook 'elpher-mode-hook #'gemini-write-set-keybindings)
+    (add-hook 'gemini-mode-hook #'gemini-write-set-keybindings)
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+	(gemini-write-set-keybindings))))
+   (t
+    (advice-remove #'elpher-render-gemini-plain-text #'gemini-write-mime-type-text)
+    (remove-hook 'elpher-mode-hook #'gemini-write-set-keybindings)
+    (remove-hook 'gemini-mode-hook #'gemini-write-set-keybindings)
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+	(gemini-write-unset-keybindings))))))
+
+(defun gemini-write-set-keybindings ()
+  "Set gemini-write keybindings on a per-mode basis."
+  (cond
+   ((eq major-mode 'elpher-mode)
+    (local-set-key (kbd "e") #'gemini-write-text)
+    (local-set-key (kbd "w") #'gemini-write-file))
+   ((eq major-mode 'gemini-mode)
+    (local-set-key (kbd "C-c C-c") #'gemini-write))))
+
+(defun gemini-write-unset-keybindings ()
+  "Unset gemini-write keybindings on a per-mode basis."
+  (cond
+   ((eq major-mode 'elpher-mode)
+    (local-unset-key (kbd "e"))
+    (local-unset-key (kbd "w")))
+   ((eq major-mode 'gemini-mode)
+    (local-unset-key (kbd "C-c C-c")))))
 
 ;; We need to know that this is one of the pages we can potentially write to.
 (advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)

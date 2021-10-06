@@ -54,7 +54,12 @@ of how to set it all up, given that I keep all my sources in
 
 ;; make sure "e" can be used to edit raw pages
 (eval-after-load "elpher" '(load-library "gemini-write"))
+(eval-after-load "gemini-write" '(gemini-write-mode))
 ```
+
+## Installing from Source as a Package
+
+Use “M-x package-install-from-file” on the elisp file.
 
 ## Tokens
 
