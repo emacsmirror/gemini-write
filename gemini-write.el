@@ -90,13 +90,11 @@
    ((eq major-mode 'gemini-mode)
     (local-unset-key (kbd "C-c C-c")))))
 
-;; We need to know that this is one of the pages we can potentially write to.
-(advice-add 'elpher-render-gemini-plain-text :after 'gemini-write-mime-type-text)
-
 (defvar gemini-write-text-p nil
   "A buffer local variable to store whether this is plain text.
-Advice added to `elpher-render-gemini-plain-text' makes sure this is
-set correctly.")
+Advice added to `elpher-render-gemini-plain-text' makes sure this
+is set correctly. We need to know that this is one of the pages
+we can potentially write to.")
 
 (defun gemini-write-mime-type-text (&rest _ignore)
   "Remember that this buffer is plain/text."
