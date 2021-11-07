@@ -5,7 +5,7 @@
 ;; Copyright (C) 2019 Tim Vaughan
 
 ;; Author: Alex Schroeder <alex@gnu.org>
-;; Version: 1.0.0
+;; Version: 1.0.1
 ;; Keywords: comm gemini
 ;; Homepage: https://alexschroeder.ch/cgit/gemini-write
 ;; Package-Requires: ((emacs "26") (elpher "2.8.0") (gemini-mode "1.0.0"))
@@ -59,6 +59,7 @@
   (cond
    (gemini-write-mode
     (advice-add #'elpher-render-gemini-plain-text :after #'gemini-write-mime-type-text)
+    (advice-add #'elpher-render-gemini-map :after #'gemini-write-mime-type-text)
     (add-hook 'elpher-mode-hook #'gemini-write-set-keybindings)
     (add-hook 'gemini-mode-hook #'gemini-write-set-keybindings)
     (dolist (buf (buffer-list))
@@ -66,6 +67,7 @@
 	(gemini-write-set-keybindings))))
    (t
     (advice-remove #'elpher-render-gemini-plain-text #'gemini-write-mime-type-text)
+    (advice-remove #'elpher-render-gemini-map #'gemini-write-mime-type-text)
     (remove-hook 'elpher-mode-hook #'gemini-write-set-keybindings)
     (remove-hook 'gemini-mode-hook #'gemini-write-set-keybindings)
     (dolist (buf (buffer-list))
