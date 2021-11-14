@@ -5,7 +5,7 @@
 ;; Copyright (C) 2019 Tim Vaughan
 
 ;; Author: Alex Schroeder <alex@gnu.org>
-;; Version: 1.0.2
+;; Version: 1.0.3
 ;; Keywords: comm gemini
 ;; Homepage: https://alexschroeder.ch/cgit/gemini-write
 ;; Package-Requires: ((emacs "26") (elpher "2.8.0") (gemini-mode "1.0.0"))
@@ -114,8 +114,7 @@ gemtext. If you're looking at the rendered text, editing it
 will be a mess. In order to protect against this, the code
 checks `gemini-write-text-p'."
   (interactive)
-  (let ((page elpher-current-page)
-	(address (elpher-page-address page)))
+  (let ((address (elpher-page-address elpher-current-page)))
     (cond ((not (equal (elpher-address-protocol address) "gemini"))
 	   (error "Elpher does not know how to edit %s"
 		  (elpher-address-protocol address)))
@@ -123,7 +122,7 @@ checks `gemini-write-text-p'."
 	   (gemini-write-buffer (buffer-string)
 				elpher-current-page (point)))
 	  ((eq gemini-write-text-p 'gemini)
-	   (elpher-visit-page page 'gemini-write-render-text t)
+	   (elpher-visit-page elpher-current-page 'gemini-write-render-text t)
 	   (message
 	    (substitute-command-keys
 	     "Reloaded as text/plain, use `\\[gemini-write-text]' again to edit")))
